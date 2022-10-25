@@ -1,0 +1,280 @@
+package example
+
+import (
+	"fmt"
+	"math/rand"
+	"runtime"
+	"time"
+
+	"github.com/telroshan/go-sfml/v2/graphics"
+	"github.com/telroshan/go-sfml/v2/window"
+)
+
+func init() {
+	runtime.LockOSThread()
+	rand.Seed(time.Now().UnixNano())
+}
+
+func makeVector2(x float64, y float64) graphics.SfVector2f {
+	v := graphics.NewSfVector2f()
+	v.SetX(float32(x))
+	v.SetY(float32(y))
+	return v
+
+}
+
+func getNullIntRect() graphics.SfIntRect {
+	return (graphics.SfIntRect)(graphics.SwigcptrSfIntRect(0))
+}
+
+func setupVM(vm *window.SfVideoMode, width uint, height uint) {
+	(*vm).SetWidth(width)
+	(*vm).SetHeight(height)
+	(*vm).SetBitsPerPixel(32)
+}
+
+func main() {
+
+	deck := getDeck()
+	deck = shuffleDeck(deck)
+
+	hand := []Card{}
+
+	vm := window.NewSfVideoMode()
+	defer window.DeleteSfVideoMode(vm)
+
+	width := uint(700)
+	height := uint(600)
+
+	setupVM(&vm, width, height)
+
+	cardsTexture := graphics.SfTexture_createFromFile("img/cards atlas.jpg", getNullIntRect())
+	defer graphics.SfTexture_destroy(cardsTexture)
+
+	var cardsSprites []graphics.Struct_SS_sfSprite
+
+	cardsSprites = append(cardsSprites, graphics.SfSprite_create())
+
+	defer graphics.SfSprite_destroy(cardsSprites[0])
+
+	cardPos := -2
+	latestCardPos := -1
+
+	cs := window.NewSfContextSettings()
+	defer window.DeleteSfContextSettings(cs)
+
+	w := graphics.SfRenderWindow_create(vm, "SFML window", uint(window.SfResize|window.SfClose), cs)
+	defer window.SfWindow_destroy(w)
+
+	ev := window.NewSfEvent()
+	defer window.DeleteSfEvent(ev)
+
+	font := graphics.SfFont_createFromFile("ttf/Russo.ttf")
+	defer graphics.SfFont_destroy(font)
+
+	if font == nil || font.Swigcptr() == 0 {
+		panic("couldn't load font")
+	}
+
+	text := graphics.SfText_create()
+	defer graphics.SfText_destroy(text)
+
+	graphics.SfText_setFont(text, font)
+
+	graphics.SfText_setCharacterSize(text, 40)
+
+	graphics.SfText_setFillColor(text, graphics.GetSfBlack())
+
+	backCard := Card{Value: 3, Suit: 5}
+
+	message := "testing"
+
+	graphics.SfText_setString(text, message)
+
+	for window.SfWindow_isOpen(w) > 0 {
+
+		for window.SfWindow_pollEvent(w, ev) > 0 {
+			if ev.GetEvType() == window.SfEventType(window.SfEvtClosed) {
+				return
+			}
+
+			if ev.GetEvType() == window.SfEventType(window.SfEvtKeyReleased) {
+				switch ev.GetKey().GetCode() {
+				case window.SfKeyCode(window.SfKeyH):
+					drawCard(&cardPos, &hand, &deck)
+					setScore(&text, &hand)
+				case window.SfKeyCode(window.SfKeyR):
+					reset(&cardPos, &hand, &deck, &cardsSprites)
+				case window.SfKeyCode(window.SfKeyQ):
+					return
+				}
+			}
+		}
+
+		if cardPos != latestCardPos {
+			latestCardPos = cardPos
+
+			if cardPos == -2 {
+				if len(cardsSprites) == 0 {
+					cardsSprites = append(cardsSprites, graphics.SfSprite_create())
+					defer graphics.SfSprite_destroy(cardsSprites[0])
+				}
+				setCardSprite(&cardsSprites[0], &cardsTexture, backCard)
+			} else {
+				for i := 0; i < len(hand); i++ {
+					if len(cardsSprites) <= i {
+						cardsSprites = append(cardsSprites, graphics.SfSprite_create())
+						defer graphics.SfSprite_destroy(cardsSprites[i])
+					}
+
+					if !hand[i].hidden || hand[i].set {
+						setCardSprite(&cardsSprites[i], &cardsTexture, hand[i])
+					} else {
+						setCardSprite(&cardsSprites[i], &cardsTexture, backCard)
+					}
+				}
+			}
+		}
+
+		graphics.SfRenderWindow_clear(w, graphics.GetSfGreen())
+
+		for i := 0; i < len(cardsSprites); i++ {
+			position := makeVector2(float64(100.0+(20.0*i)), 100.0)
+			graphics.SfSprite_setPosition(cardsSprites[i], position)
+			graphics.SfRenderWindow_drawSprite(w, cardsSprites[i], getNullRenderState())
+		}
+
+		graphics.SfRenderWindow_drawText(w, text, getNullRenderState())
+
+		graphics.SfRenderWindow_display(w)
+	}
+}
+
+func getNullRenderState() graphics.SfRenderStates {
+	return (graphics.SfRenderStates)(graphics.SwigcptrSfRenderStates(0))
+}
+
+func setCardSprite(sprite *graphics.Struct_SS_sfSprite, texture *graphics.Struct_SS_sfTexture, card Card) {
+	graphics.SfSprite_setTexture(*sprite, *texture, 1)
+
+	rect := graphics.NewSfIntRect()
+
+	textureDims := graphics.SfTexture_getSize(*texture)
+
+	valuePosition := int(int(textureDims.GetX()) / 13 * (card.Value - 1))
+	suitPosition := int(int(textureDims.GetY()) / 5 * (card.Suit - 1))
+
+	fmt.Println(valuePosition, ":", suitPosition)
+
+	rect.SetLeft(valuePosition)
+	rect.SetWidth(int(textureDims.GetX() / 13))
+	rect.SetTop(suitPosition)
+	rect.SetHeight(int(textureDims.GetY() / 5))
+
+	graphics.SfSprite_setTextureRect(*sprite, rect)
+}
+
+//
+func drawCard(cardPos *int, hand *[]Card, deck *[]Card) {
+	if *cardPos == -2 {
+		*cardPos = -1
+	}
+
+	if len(*deck) > 0 {
+		*cardPos += 1
+		moveCard(hand, deck)
+	} else {
+		*deck = getDeck()
+		*deck = shuffleDeck(*deck)
+		*cardPos = 0
+		moveCard(hand, deck)
+	}
+}
+
+func moveCard(hand *[]Card, deck *[]Card) {
+	*hand = append(*hand, (*deck)[0])
+	(*hand)[len(*hand)-1].set = true
+	*deck = (*deck)[1:]
+}
+
+func setScore(text *graphics.Struct_SS_sfText, hand *[]Card) {
+
+	fmt.Println((*hand))
+
+	var score []int
+	var ones int
+
+	score = append(score, 0)
+
+	for i := 0; i < len(*hand); i++ {
+		value := (*hand)[i].Value
+		if value != 1 {
+			if value > 10 {
+				value = 10
+			}
+			score[0] += value
+		} else {
+			ones++
+		}
+	}
+
+	if ones > 0 {
+		firstElvn := false
+
+		if score[0]+11 < 21 && !firstElvn {
+			score = append(score, score[0])
+			score[0] += 11
+			score[1] += 1
+		} else {
+			score[0] += 1
+		}
+
+		if ones > 1 {
+			for i := 1; i < ones; i++ {
+				score[0] += 1
+				if len(score) == 2 {
+					score[1] += 1
+				}
+			}
+		}
+	}
+
+	scoreText := "Score: "
+
+	scoreText += fmt.Sprint(score[0])
+
+	if len(score) == 2 {
+		scoreText += "/"
+		scoreText += fmt.Sprint(score[1])
+	}
+
+	for i := 0; i < len(score); i++ {
+		if score[i] == 21 {
+			scoreText += " Blackjack!"
+			break
+		}
+		if score[i] > 21 {
+			scoreText += " Bust!"
+			break
+		}
+	}
+
+	graphics.SfText_setString(*text, scoreText)
+
+}
+
+func reset(cardPos *int, hand *[]Card, deck *[]Card, cardsSprites *[]graphics.Struct_SS_sfSprite) {
+	*cardPos = -2
+	*deck = getDeck()
+	*deck = shuffleDeck(*deck)
+	*hand = []Card{}
+
+	/*
+		for i := 0; i < len(*cardsSprites); i++ {
+			graphics.SfSprite_destroy((*cardsSprites)[i])
+		}
+	*/
+
+	*cardsSprites = []graphics.Struct_SS_sfSprite{}
+
+}
