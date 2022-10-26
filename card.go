@@ -1,8 +1,8 @@
 package main
 
 type Card struct {
-	Suit   int `json: "suit"`
-	Value  int `json: "value"`
+	Suit   int `json:"suit"`
+	Value  int `json:"value"`
 	hidden bool
 	set    bool
 }

@@ -65,31 +65,23 @@ func gameLoop() {
 	timestamp := time.Now()
 
 	frames := 0
-	for {
-		deltatime := float32(time.Now().Sub(timestamp).Seconds())
-		timestamp = time.Now()
-		for window.SfWindow_pollEvent(w, ev) > 0 {
-			if ev.GetEvType() == window.SfEventType(window.SfEvtClosed) {
-				return
-			}
 
-			if ev.GetEvType() == window.SfEventType(window.SfEvtKeyReleased) {
-				switch ev.GetKey().GetCode() {
-				case window.SfKeyCode(window.SfKeyQ):
-					return
-				case window.SfKeyCode(window.SfKeyEqual):
-					spd += 10.0
-				case window.SfKeyCode(window.SfKeyHyphen):
-					spd -= 10.0
-					if spd < 0 {
-						spd = 0
-					}
-				}
-			}
-		}
+	frameRate := []float32{}
+
+	mainMenu := false
+
+	for !quit && !mainMenu {
+		frameRate = append(frameRate, float32(time.Since(timestamp).Seconds()))
+		deltatime := float32(time.Since(timestamp).Seconds())
+		timestamp = time.Now()
+
+		eventHandler(&ev, &spd)
+
 		graphics.SfRenderWindow_clear(w, graphics.GetSfWhite())
 
 		frames++
+
+		average := getAverage(frameRate, frames)
 
 		x += spd * float64(deltatime) * right
 
@@ -105,17 +97,49 @@ func gameLoop() {
 
 		graphics.SfText_setPosition(scoreText, makeVector2(float32(x), float32(y)))
 
-		
+		if frames > 100 {
+			frames = 0
+			frameRate = []float32{}
+		}
 
-		graphics.SfText_setString(scoreText, fmt.Sprint())
+		graphics.SfText_setString(scoreText, fmt.Sprint(int(1/average)))
 
 		graphics.SfRenderWindow_drawText(w, scoreText, getNullRenderState())
 
-
-
 		graphics.SfRenderWindow_display(w)
 	}
+}
 
+func eventHandler(ev *window.SfEvent, spd *float64) {
+	for window.SfWindow_pollEvent(w, *ev) > 0 {
+		if (*ev).GetEvType() == window.SfEventType(window.SfEvtClosed) {
+			return
+		}
+
+		if (*ev).GetEvType() == window.SfEventType(window.SfEvtKeyReleased) {
+			switch (*ev).GetKey().GetCode() {
+			case window.SfKeyCode(window.SfKeyQ):
+				quit = true
+			case window.SfKeyCode(window.SfKeyEqual):
+				*spd += 10.0
+			case window.SfKeyCode(window.SfKeyHyphen):
+				*spd -= 10.0
+				if *spd < 0 {
+					*spd = 0
+				}
+			}
+		}
+	}
+}
+
+func getAverage(framerate []float32, frames int) float32 {
+	total := float32(0)
+
+	for _, i := range framerate {
+		total += i
+	}
+
+	return total / float32(frames)
 }
 
 func initText(text *graphics.Struct_SS_sfText) {
