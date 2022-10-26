@@ -32,11 +32,11 @@ func init() {
 func main() {
 	fmt.Println("Starting...")
 	font = graphics.SfFont_createFromFile("ttf/Russo.ttf")
-	
+	cs = window.NewSfContextSettings()
 	if font == nil || font.Swigcptr() == 0 {
 		panic("couldn't load font")
 	}
-	
+
 	quit = false
 	gameState = "game"
 	deck = makeShuffledDeck()
@@ -45,10 +45,12 @@ func main() {
 	setupWindow()
 	defer graphics.SfFont_destroy(font)
 	defer window.SfWindow_destroy(w)
+	defer window.DeleteSfContextSettings(cs)
 	for !quit {
 		switch gameState {
 		case "game":
 			gameLoop()
+			quit = true
 		}
 	}
 	fmt.Println("Finished")

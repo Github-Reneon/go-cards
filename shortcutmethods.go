@@ -10,6 +10,7 @@ func getNullIntRect() graphics.SfIntRect {
 }
 
 func setupVM(vm *window.SfVideoMode) {
+	*vm = window.NewSfVideoMode()
 	(*vm).SetWidth(vmOptions.Width)
 	(*vm).SetHeight(vmOptions.Height)
 	(*vm).SetBitsPerPixel(32)
@@ -26,4 +27,8 @@ func makeShuffledDeck() []Card {
 	ret := getDeck()
 	ret = shuffleDeck(ret)
 	return ret
+}
+
+func getNullRenderState() graphics.SfRenderStates {
+	return (graphics.SfRenderStates)(graphics.SwigcptrSfRenderStates(0))
 }

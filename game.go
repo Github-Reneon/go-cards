@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/telroshan/go-sfml/v2/graphics"
 	"github.com/telroshan/go-sfml/v2/window"
@@ -47,10 +48,72 @@ func gameLoop() {
 	defer graphics.SfText_destroy(scoreText)
 	defer graphics.SfText_destroy(cashText)
 
-	//set up the cards
-	backCard := Card{
-		Value: 3,
-		Suit:  5,
+	/*
+		//set up the cards
+		backCard := Card{
+			Value: 3,
+			Suit:  5,
+		}
+	*/
+
+	x, y := 10.0, 10.0
+
+	spd := 3.0
+
+	down, right := 1.0, 1.0
+
+	timestamp := time.Now()
+
+	frames := 0
+	for {
+		deltatime := float32(time.Now().Sub(timestamp).Seconds())
+		timestamp = time.Now()
+		for window.SfWindow_pollEvent(w, ev) > 0 {
+			if ev.GetEvType() == window.SfEventType(window.SfEvtClosed) {
+				return
+			}
+
+			if ev.GetEvType() == window.SfEventType(window.SfEvtKeyReleased) {
+				switch ev.GetKey().GetCode() {
+				case window.SfKeyCode(window.SfKeyQ):
+					return
+				case window.SfKeyCode(window.SfKeyEqual):
+					spd += 10.0
+				case window.SfKeyCode(window.SfKeyHyphen):
+					spd -= 10.0
+					if spd < 0 {
+						spd = 0
+					}
+				}
+			}
+		}
+		graphics.SfRenderWindow_clear(w, graphics.GetSfWhite())
+
+		frames++
+
+		x += spd * float64(deltatime) * right
+
+		y += spd * float64(deltatime) * down
+
+		if x > float64(vmOptions.Width) || x < 0.0 {
+			right *= -1.0
+		}
+
+		if y > float64(vmOptions.Height) || y < 0.0 {
+			down *= -1.0
+		}
+
+		graphics.SfText_setPosition(scoreText, makeVector2(float32(x), float32(y)))
+
+		
+
+		graphics.SfText_setString(scoreText, fmt.Sprint())
+
+		graphics.SfRenderWindow_drawText(w, scoreText, getNullRenderState())
+
+
+
+		graphics.SfRenderWindow_display(w)
 	}
 
 }
@@ -66,7 +129,7 @@ func loadSprites(sprites *map[string][]graphics.Struct_SS_sfSprite) {
 }
 
 func loadTextures(textures *map[string]graphics.Struct_SS_sfTexture) {
-	cardTexturePath := "img/cards atlas.jpg"
+	cardTexturePath := "img/cards.jpg"
 	(*textures)["cardsTexture"] = graphics.SfTexture_createFromFile(cardTexturePath, getNullIntRect())
 }
 
